@@ -1,6 +1,6 @@
 import socket
-from http_message import create_http_response
-
+from routing import handle_path
+from http_message import Request
 
 def start_server(port: int, max_connections: int):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -13,7 +13,10 @@ def start_server(port: int, max_connections: int):
             try:
                 print('Connected by', addr)
                 data = conn.recv(1024)
-                conn.sendall(create_http_response(200, "Welcome to the Jungle!"))
+               
+                response = handle_path(Request(data))
+                conn.sendall(response)
+
             finally:
                 conn.close()
 
