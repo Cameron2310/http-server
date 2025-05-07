@@ -4,23 +4,13 @@ from http_message import Request
 
 
 def handle_request(client_sock):
-    data = client_sock.recv(1024, socket.MSG_DONTWAIT)
+    data = client_sock.recv(1024)
+    print("retrieving data...", data)
 
-    while data:
-        try:
-            request = Request(data)
-            response = handle_path(request)
-            client_sock.send(response, socket.MSG_DONTWAIT)
-            
-            data = client_sock.recv(1024, socket.MSG_DONTWAIT)
-            print(data)
-        except BlockingIOError:
-            pass
-        except Exception:
-            break
-
-    print("ending loop")
-
+    request = Request(data)
+    response = handle_path(request)
+    client_sock.send(response)
+    
 
 def start_server(port: int, max_connections: int):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server_sock:
@@ -35,6 +25,8 @@ def start_server(port: int, max_connections: int):
 
             finally:
                 print("closing connection...")
+                client_sock.shutdown(socket.SHUT_WR)
                 client_sock.close()
+
                 
-start_server(8000, 20)
+start_server(8000, 5)
