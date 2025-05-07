@@ -10,14 +10,17 @@ def generate_body(length: int):
 
 def make_get_request(t_id: int):
     body = generate_body(128)
-
+    print(f"\n\ngenerated body for request {t_id}: {body}")
+    
     while True:
         n_retries = 0
-
+        
         try:
-            requests.get("http://localhost:8000/echo", json=body)
+            response = requests.get("http://localhost:8000/echo", data=body)
+            print(f"request {t_id}: {response.text}\n")
             break
-        except Exception:
+        except Exception as e:
+            print("Exception ", e)
             print("\n\nhandling exception\n\n")
 
             n_retries += 1
@@ -26,9 +29,6 @@ def make_get_request(t_id: int):
             else:
                 pass
                 
-
-        # print(f"request {t_id * i}: {response.status_code}")
-    
 
 def run_concurrent_test(num_threads: int):
     threads = []
@@ -43,9 +43,7 @@ def run_concurrent_test(num_threads: int):
 
 def run_basic_test_w_body():
     for i in range(50):
-        print(f"id #{i}: sending response...")
         make_get_request(i)
-        print(f"id #{i}: achieved response...")
 
-run_basic_test_w_body()
-# run_concurrent_test(10)
+# run_basic_test_w_body()
+run_concurrent_test(10)
