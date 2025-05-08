@@ -1,3 +1,6 @@
+from datetime import datetime
+
+
 class Request:
     def __init__(self, request: bytes):
         str_request = request.decode()
@@ -10,3 +13,28 @@ class Request:
 
         self.headers = parsed_request[1: parsed_request.index("")]
         self.body = parsed_request[parsed_request.index("") + 1]
+
+
+
+def create_response(response_code: int, response_message: str, content_type="text/plain", body=""):
+    http_version = "HTTP/1.1"
+    content_len = 0
+
+    if isinstance(body, str):
+        content_len = len(body)
+
+    else:
+        content_len = len(body)
+
+    headers = [f"Data: {datetime.now()}", "Server: Test", f"Content-Length: {content_len}", f"Content-Type: {content_type}"]
+    
+    response = f"{http_version} {response_code} {response_message}\r\n"
+    for h in headers:
+        response += f"{h}\r\n"
+    
+    response += "\r\n"
+
+    if not isinstance(body, str):
+        return response.encode() + body
+
+    return (response + body).encode()
