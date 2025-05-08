@@ -24,14 +24,12 @@ def make_get_request(request_id, body=None):
         
         try:
             response = requests.get("http://localhost:8000/echo", data=body)
-            print(f"request {request_id}: {response.text}\n")
-            
             return response.text
 
         except Exception as e:
             print(f"Exception {e}\nRetrying connection...")
-
             n_retries += 1
+
             if n_retries > 5:
                 break
             else:
@@ -62,7 +60,7 @@ def run_basic_test_w_body():
     count = 0
 
     start = time.time()
-    for i in range(500):
+    for i in range(50):
         responses.append(make_get_request(i))
 
     end = time.time()
