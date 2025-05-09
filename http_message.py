@@ -3,7 +3,7 @@ from datetime import datetime
 
 class Request:
     def __init__(self, request: bytes):
-        str_request = request.decode("utf-8")
+        str_request = request.decode()
         parsed_request = str_request.split("\r\n")
         start_line = parsed_request[0].split()
         
@@ -13,7 +13,7 @@ class Request:
 
         self.headers = parsed_request[1: parsed_request.index("")]
         self.body = parsed_request[parsed_request.index("") + 1].encode()
-    
+
 
     def find_header(self, header: str):
         for h in self.headers:
@@ -38,6 +38,5 @@ def create_response(response_code: int, response_message: str, content_type="tex
     
     if not isinstance(body, str):
         return response.encode() + body
-
 
     return (response + body).encode()
