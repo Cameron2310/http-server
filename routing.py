@@ -23,7 +23,7 @@ def handle_path(request: http_message.Request):
                 return http_message.create_response(500, "Server Error")
 
         case "/file":
-            with open("./cute-cat.jpg", "rb") as f:
+            with open("./imgs/cute-cat.jpg", "rb") as f:
                 file = f.read()
 
             return http_message.create_response(200, "OK", "image/jpeg", file)

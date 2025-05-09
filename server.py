@@ -10,8 +10,14 @@ def handle_request(client_sock: socket.socket, request_id: int):
         data = client_sock.recv(batch_size)
         
         request = Request(data)
-        content_length = int(request.find_header("Content-Length")) - batch_size
+        content_length = request.find_header("Content-Length")
+
+        if content_length:
+            content_length = int(request.find_header("Content-Length")) - batch_size
        
+        else:
+            content_length = 0
+
         if content_length > batch_size:
             byte_list = [request.body]
 
@@ -22,7 +28,7 @@ def handle_request(client_sock: socket.socket, request_id: int):
             request.body = b"".join(byte_list)
 
         response = handle_path(request)
-        print(f"\nresponding to request {request_id}")
+        # print(f"\nresponding to request {request_id}")
         client_sock.sendall(response)
 
     finally:
@@ -35,6 +41,7 @@ def start_server(port: int, max_connections: int):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server_sock:
         server_sock.bind(("localhost", port))
         server_sock.listen(max_connections)
+        print("spinning up server...")
 
         while True:
             client_sock, _ = server_sock.accept()
