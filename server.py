@@ -6,12 +6,23 @@ from http_message import Request
 
 def handle_request(client_sock: socket.socket, request_id: int):
     try:
-        data = client_sock.recv(1024)
-        print("\n\ndata ------> ", data)
+        batch_size = 2048
+        data = client_sock.recv(batch_size)
+        
         request = Request(data)
+        content_length = int(request.find_header("Content-Length")) - batch_size
+       
+        if content_length > batch_size:
+            byte_list = [request.body]
+
+            while content_length > 0:
+                content_length -= batch_size
+                byte_list.append(client_sock.recv(batch_size))
+            
+            request.body = b"".join(byte_list)
 
         response = handle_path(request)
-        print(f"\n\nresponse to request {request_id}\n", response)
+        print(f"\nresponding to request {request_id}")
         client_sock.sendall(response)
 
     finally:
