@@ -12,10 +12,8 @@ def generate_key_pair():
     return KeyPair(private_key, public_key) 
 
 
-def create_extension(id: int, contents: List[int]) -> List[int]:
+def create_extension(id: int, contents) -> List[int]:
     id_bytes = [int(i) for i in id.to_bytes(2, "big")]
     content_bytes = [int(i) for i in (len(contents)).to_bytes(2, "big")]
-    extension = [*id_bytes, *content_bytes, *contents]
-    print("extension ----> ", extension)
 
-    return extension
+    return [*id_bytes, *content_bytes, *contents]

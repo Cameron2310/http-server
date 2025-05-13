@@ -1,5 +1,6 @@
 import socket
 import threading
+import tls.client
 from routing import handle_path
 from http_message import Request
 
@@ -8,7 +9,8 @@ def handle_request(client_sock: socket.socket, request_id: int):
     try:
         batch_size = 2048
         data = client_sock.recv(batch_size)
-        
+        tls.client.parse_client_message(data)
+
         request = Request(data)
         content_length = request.find_header("Content-Length")
 
