@@ -1,6 +1,6 @@
 from os import urandom
 from typing import List
-import utils
+from . import utils
 
 
 def create_server_hello_extensions():
@@ -9,11 +9,11 @@ def create_server_hello_extensions():
     keys = utils.generate_key_pair()
     len_key = (len(keys.public_key.public_bytes_raw())).to_bytes(2, "big")
     key_bytes = utils.create_extension(0x33, 0x1d.to_bytes(2, "big") + len_key + keys.public_key.public_bytes_raw())
-
+    
     return supported_versions + key_bytes 
 
 
-def create_server_hello(session_id=None) -> List[int]:
+def create_server_hello(session_id) -> List[int]:
     handshake_record = [0x16]
     protocol_version = [0x03, 0x03]
 
@@ -24,12 +24,10 @@ def create_server_hello(session_id=None) -> List[int]:
     cipher_suite = [0x13, 0x02]
     compression_method = [0x00]
 
-    if not session_id:
-        session_id = [int(i) for i in urandom(32)]
-
     extensions = create_server_hello_extensions()
-    handshake = server_tls_version + server_random + session_id + cipher_suite + compression_method + [int(i) for i in (len(extensions)).to_bytes(2, "big")] + extensions 
-    
+    handshake = server_tls_version + server_random + [0x20] + [int(i) for i in session_id] + cipher_suite + compression_method + [int(i) for i in (len(extensions)).to_bytes(2, "big")] + extensions 
+
+    print("session id ----> ", len([int(i) for i in session_id]))
     handshake_data = [int(i) for i in (len(handshake) + 4).to_bytes(2, "big")]
     len_handshake = [int(i) for i in (len(handshake)).to_bytes(2, "big")]
 

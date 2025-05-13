@@ -46,14 +46,25 @@ def create_client_hello():
 
 
 def parse_client_message(client_message: bytes):
-    print("client message ----> ", client_message)
-    list_msg = [i for i in client_message]
-    
-    client_random = list_msg[10:43]
-    print(client_random)
-    session_id = list_msg[39]
-    public_key = list_msg[len(list_msg) - 32:len(list_msg)]
+    client_random = None
+    client_key = None
+    session_id = None
 
-    client_hello = ClientHello(client_random, session_id, public_key)
+    print("data ----> ", client_message)
+    for i in range(len(client_message)):
+        if client_message[i] == 0x03 and client_message[i + 1] == 0x03:
+            client_random = client_message[i + 2: i + 34]
+            break
+
+    for j in range(len(client_message) - 1, 0, -1):
+        if client_message[j] == 0x00 and client_message[j - 1] == 0x1d:
+            client_key = client_message[j + 2: j + 34]
+            break
+
+    session_id = client_message[client_message.index(client_random[-1]) + 2: client_message.index(client_random[-1]) + 34]
+
+    return ClientHello(client_random, session_id, client_key)
+    
+
        
 
