@@ -50,7 +50,6 @@ def parse_client_message(client_message: bytes):
     client_key = None
     session_id = None
 
-    print("data ----> ", client_message)
     for i in range(len(client_message)):
         if client_message[i] == 0x03 and client_message[i + 1] == 0x03:
             client_random = client_message[i + 2: i + 34]
@@ -63,7 +62,7 @@ def parse_client_message(client_message: bytes):
 
     session_id = client_message[client_message.index(client_random[-1]) + 2: client_message.index(client_random[-1]) + 34]
 
-    return ClientHello(client_random, session_id, client_key)
+    return ClientHello(client_random, session_id, utils.generate_public_key(client_key))
     
 
        
