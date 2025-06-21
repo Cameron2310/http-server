@@ -35,11 +35,12 @@ def create_server_hello(session_id) -> ServerHello:
 
 
 def create_wrapped_record(shs_key: bytes, shs_iv: bytes, data: bytes, additional: bytes = None):
-    handshake_record = bytes(0x17)
+    handshake_record = bytes([0x17])
     protocol_version = bytes([0x03, 0x03])
     encrypted_data = utils.encrypt(shs_key, shs_iv, data, additional)
 
     record = handshake_record + protocol_version + (len(encrypted_data).to_bytes(2, "big")) + encrypted_data
-    print("length of encrypted_data -----> ", len(encrypted_data))
+    print("length of encrypted_data for wrapped record -----> ", len(encrypted_data))
+    print(f"\n\n wrapper record ---> {record}\n\n")
     return record
     

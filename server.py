@@ -44,7 +44,7 @@ def start_server(port: int, max_connections: int):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server_sock:
         server_sock.bind(("localhost", port))
         server_sock.listen(max_connections)
-        print("spinning up server...")
+        print(f"spinning up server on port {port}...")
 
         while True:
             client_sock, _ = server_sock.accept()
