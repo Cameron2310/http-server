@@ -9,7 +9,9 @@ def create_server_hello_extensions(keys: utils.KeyPair):
     supported_versions = utils.create_extension(0x2b, [0x03, 0x04])
 
     len_key = (len(keys.public_key.public_bytes_raw())).to_bytes(2, "big")
-    key_bytes = utils.create_extension(0x33, 0x1d.to_bytes(2, "big") + len_key + keys.public_key.public_bytes_raw())
+    public_key_raw = keys.public_key.public_bytes_raw()
+
+    key_bytes = utils.create_extension(0x33, 0x1d.to_bytes(2, "big") + len_key + public_key_raw)
     
     return supported_versions + key_bytes 
 
@@ -22,7 +24,7 @@ def create_server_hello(session_id) -> ServerHello:
     server_tls_version = [0x03, 0x03]  # tls version 1.2
     server_random = [int(i) for i in urandom(32)]
 
-    cipher_suite = [0x13, 0x02]
+    cipher_suite = [0x13, 0x01]
     compression_method = [0x00]
 
     extensions = create_server_hello_extensions(keys)
@@ -34,13 +36,35 @@ def create_server_hello(session_id) -> ServerHello:
     return ServerHello(handshake_record + protocol_version + handshake_data + [0x02, 0x00] + len_handshake + handshake, keys.private_key)
 
 
-def create_wrapped_record(shs_key: bytes, shs_iv: bytes, data: bytes, additional: bytes = None):
-    handshake_record = bytes([0x17])
-    protocol_version = bytes([0x03, 0x03])
-    encrypted_data = utils.encrypt(shs_key, shs_iv, data, additional)
+class Wrapper:
+    def __init__(self, shs_key: bytes, shs_iv: bytes, chs_iv: bytes = None, chs_key: bytes = None):
+        self.shs_key = shs_key
+        self.shs_iv = shs_iv
+        self.chs_key = chs_key
+        self.chs_iv = chs_iv
+        self.record_count = 0
 
-    record = handshake_record + protocol_version + (len(encrypted_data).to_bytes(2, "big")) + encrypted_data
-    print("length of encrypted_data for wrapped record -----> ", len(encrypted_data))
-    print(f"\n\n wrapper record ---> {record}\n\n")
-    return record
-    
+
+    def wrap(self, data: bytes, additional: bytes = None):
+        handshake_record = bytes([0x17])
+        protocol_version = bytes([0x03, 0x03])
+        len_data_in_bytes = (len(data) + 17).to_bytes(2, "big")
+
+        additional = handshake_record + protocol_version + len_data_in_bytes
+        encrypted_data = utils.encrypt(self.shs_key, xor_iv(self.shs_iv, self.record_count), data + bytes([0x16]), additional)
+        
+        record = additional + encrypted_data
+        self.record_count += 1
+
+        return record
+   
+
+def xor_iv(server_iv, record_count):
+    print("\n\n xor_iv: count of records ----> ", record_count)
+    if type(server_iv) is bytes:
+        server_iv = int.from_bytes(server_iv, "big")
+
+    if type(record_count) is bytes:
+        record_count = int.from_bytes(record_count, "big")
+
+    return (server_iv ^ record_count).to_bytes(12, "big")
