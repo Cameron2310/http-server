@@ -4,3 +4,7 @@ files
 .vscode
 .pytest_cache
 .venv
+*.pem
+**/*.pem
+*.crt
+**/*.crt
