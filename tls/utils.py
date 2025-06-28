@@ -3,12 +3,12 @@ import hmac
 from collections import namedtuple
 from cryptography import x509
 from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PrivateKey, X25519PublicKey
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.kdf.hkdf import HKDFExpand
-from cryptography.hazmat.primitives.serialization import Encoding
+from cryptography.hazmat.primitives.serialization import Encoding, load_pem_private_key
 from typing import List
-
 
 KeyPair = namedtuple("KeyPair", ["private_key", "public_key"])
 HandshakeKeys = namedtuple("HandshakeKeys", ["handshake_secret", "chs", "chs_key", "chs_iv", "shs", "shs_key", "shs_iv"])
@@ -32,46 +32,45 @@ def create_extension(id: int, contents) -> List[int]:
     return [*id_bytes, *content_bytes, *contents]
 
 
-def make_handshake_keys(client_public_key: X25519PublicKey, server_private_key: X25519PrivateKey, s_hello_msg: bytes, c_hello_msg: bytes):
+def make_handshake_keys(client_public_key: X25519PublicKey, server_private_key: X25519PrivateKey, c_hello_msg: bytes, s_hello_msg: bytes):
     shared_secret = server_private_key.exchange(client_public_key)
-    early_secret = hkdf_extract(hashlib.sha384, bytes(32), bytes(32))
-    derived_secret = derive_secret(early_secret, "derived", bytes())
-        
-    handshake_secret = hkdf_extract(hashlib.sha384, shared_secret, derived_secret)
-    
-    chs_secret = derive_secret(handshake_secret, "c hs traffic", c_hello_msg + s_hello_msg)
-    chs_key = hkdf_expand_label(chs_secret, "key", bytes(), 16)
-    chs_iv = hkdf_expand_label(chs_secret, "iv", bytes(), 12)
+    early_secret = hkdf_extract(b"\x00", b"\x00" * 32)
 
-    shs_secret = derive_secret(handshake_secret, "s hs traffic", c_hello_msg + s_hello_msg)
-    shs_key = hkdf_expand_label(shs_secret, "key", bytes(), 16)
-    shs_iv = hkdf_expand_label(shs_secret, "iv", bytes(), 12)
+    hasher = hashlib.sha256()
+    hasher.update(b"")
+    empty_hash = hasher.digest()
+
+    derived_secret = hkdf_expand_label(early_secret, b"derived", empty_hash, 32)
+        
+    handshake_secret = hkdf_extract(derived_secret, shared_secret)
+
+    hasher = hashlib.sha256()
+    hasher.update(c_hello_msg + s_hello_msg)
+    hello_hash = hasher.digest()
+    
+    chs_secret = hkdf_expand_label(handshake_secret, b"c hs traffic", hello_hash, 32)
+    shs_secret = hkdf_expand_label(handshake_secret, b"s hs traffic", hello_hash, 32)
+
+    chs_key = hkdf_expand_label(chs_secret, b"key", b"", 16)
+    shs_key = hkdf_expand_label(shs_secret, b"key", b"", 16)
+
+    chs_iv = hkdf_expand_label(chs_secret, b"iv", b"", 12)
+    shs_iv = hkdf_expand_label(shs_secret, b"iv", b"", 12)
 
     return HandshakeKeys(handshake_secret, chs_secret, chs_key, chs_iv, shs_secret, shs_key, shs_iv)
 
 
-def hkdf_extract(hash, secret: bytes, salt: bytes):
+def hkdf_extract(salt: bytes, secret: bytes, hash=hashlib.sha256):
     return hmac.new(salt, secret, hash).digest()
 
 
-def derive_secret(secret: bytes, label: str, context: bytes) -> bytes:
-    hash = hashlib.sha384(context).digest()
+def hkdf_expand_label(secret: bytes, label: bytes, context: bytes, length: int) -> bytes:
+    label = b"tls13 " + label
 
-    return hkdf_expand_label(secret, label, hash, 32)
-
-
-def hkdf_expand_label(secret: bytes, label: str, context: bytes, length: int) -> bytes:
-    hkdf_label = bytes()
-    hkdf_label += length.to_bytes(2, "big")
-
-    hkdf_label += b'tls13 '
-    hkdf_label += bytes(label, "utf-8")
-    hkdf_label += context
-
-    hkdf_expand = HKDFExpand(hashes.SHA384(), length, hkdf_label)
-    key = hkdf_expand.derive(secret)
-
-    return key
+    hkdf_label = (length.to_bytes(2, "big") + len(label).to_bytes(1, "big") + label + len(context).to_bytes(1, "big") + context)
+    hkdf_expand = HKDFExpand(hashes.SHA256(), length, hkdf_label)
+    
+    return hkdf_expand.derive(secret)
 
 
 def encrypt(key: bytes, iv: bytes, plaintext: bytes, additional: bytes = None) -> bytes:
@@ -86,3 +85,20 @@ def get_server_cert():
     
     cert = x509.load_pem_x509_certificate(cert_data)
     return cert.public_bytes(Encoding.DER)
+
+
+def sign_hash(hashed_data: bytes):
+    with open("tls/private_key.pem", "rb") as key_file:
+        private_key = load_pem_private_key(
+            key_file.read(),
+            password=None
+        )
+
+    return private_key.sign(hashed_data, padding.PKCS1v15(), algorithm=hashes.SHA256())
+
+
+def hash_messages(messages: bytes):
+    hash = hashlib.sha256()
+    hash.update(messages)
+
+    return hash.digest()
