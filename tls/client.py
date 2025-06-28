@@ -1,69 +1,32 @@
 from collections import namedtuple
-from os import urandom
 from . import utils
 
 ClientHello = namedtuple("ClientHello", ["random", "session_id", "public_key"])
 
 
-def create_client_hello_extensions():
-    name = "localhost"
-
-    server_name = (len(name) + 3).to_bytes(2, "big") + b'\x00' + (len(name)).to_bytes(2, "big") + name.encode() 
-    server_name_bytes = utils.create_extension(0x0, server_name)
-
-    group_bytes = utils.create_extension(0x0a, [0x00, 0x02, 0x00, 0x1d])
-    supported_algorithms = utils.create_extension(0x0d, [0x00, 0x12, 0x04, 0x03, 0x08, 0x04, 0x04, 0x01, 0x05, 0x03, 0x08, 0x05, 0x05, 0x01, 0x08, 0x06, 0x06, 0x01, 0x02, 0x01])
-    
-    keys = utils.generate_key_pair()
-    key_bytes = utils.create_extension(0x33, (len(keys.public_key.public_bytes_raw()) + 4).to_bytes(2, "big") + 0x1d.to_bytes(2, "big") + (len(keys.public_key.public_bytes_raw())).to_bytes(2, "big") + keys.public_key.public_bytes_raw())
-
-    psk_bytes = utils.create_extension(0x2d, [0x01, 0x01])
-    tls_version_bytes = utils.create_extension(0x2b, [0x02, 0x03, 0x04])
-
-    return server_name_bytes + group_bytes + supported_algorithms + key_bytes + psk_bytes + tls_version_bytes 
-
-
-def create_client_hello():
-    handshake_record = [0x16]
-
-    # tls version (0x03, 0x01) (TLS 1.0)
-    tls_version = [0x03, 0x01]
-    client_version = [0x03, 0x03]
-    
-    client_random = urandom(32)
-    client_random_bytes = [int(i) for i in client_random]
-
-    session_id = [0x00]
-    cipher_suites = [0x00, 0x02, 0x13, 0x01]
-
-    # TLS 1.3 does not allow compression, so this is a null value
-    compression_methods = [0x01, 0x00]
-    extensions = create_client_hello_extensions()
-    handshake = client_version + client_random_bytes + session_id + cipher_suites + compression_methods + [int(i) for i in (len(extensions)).to_bytes(2, "big")] + extensions
-    
-    handshake_data = [int(i) for i in (len(handshake) + 4).to_bytes(2, "big")] 
-    return handshake_record + tls_version + handshake_data + [0x01, 0x00] + [int(i) for i in (len(handshake)).to_bytes(2, "big")] + handshake
-
-
 def parse_client_message(client_message: bytes):
+    # TODO: clean up the logic here
     client_random = None
     client_key = None
     session_id = None
 
-    for i in range(len(client_message)):
-        if client_message[i] == 0x03 and client_message[i + 1] == 0x03:
-            client_random = client_message[i + 2: i + 34]
-            break
+    client_message = client_message.hex()
+    end_of_msg = 34 * 2
 
-    for j in range(len(client_message) - 1, 0, -1):
-        if client_message[j] == 0x00 and client_message[j - 1] == 0x1d:
-            client_key = client_message[j + 2: j + 34]
-            break
+    index_client_version = client_message.find("0303")
+    client_random = client_message[index_client_version + 4: index_client_version + end_of_msg]
 
-    session_id = client_message[client_message.index(client_random[-1]) + 2: client_message.index(client_random[-1]) + 34]
+    idx_client_random = client_message.find(client_random)
+    start_idx_session_id = idx_client_random + 64
+    session_id = client_message[start_idx_session_id + 2: start_idx_session_id + end_of_msg - 2]
 
-    return ClientHello(client_random, session_id, utils.generate_public_key(client_key))
-    
+    start_idx_key_share = client_message.rfind("0020")
+    client_key = client_message[start_idx_key_share + 4: start_idx_key_share + end_of_msg]
 
-       
+    encoded_key = bytes.fromhex(client_key)
+    encoded_session_id = bytes.fromhex(session_id)
+    encoded_client_random = bytes.fromhex(client_random)
 
+    client_key = utils.generate_public_key(encoded_key)
+    return ClientHello(encoded_client_random, encoded_session_id, client_key)
+   
