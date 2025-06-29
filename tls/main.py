@@ -19,11 +19,11 @@ def handle_https_request(request: bytes, client_sock: socket.socket):
    
     cert = utils.get_server_cert()
     cert_message_type = bytes([0x0b])
-    cert_payload_len = (len(cert) + 4).to_bytes(3, "big")
+    cert_payload_len = (len(cert) + 9).to_bytes(3, "big")
     cert_handshake_header = cert_message_type + cert_payload_len
 
     request_context = bytes([0x00])
-    certificates_len = bytes([0x00, 0x03, 0x2a])  # len of all certs
+    certificates_len = (len(cert) + 5).to_bytes(3, "big")  # len of all certs
     cert_len = len(cert).to_bytes(3, "big")
     cert_extensions = bytes([0x00, 0x00])
 
@@ -45,9 +45,8 @@ def handle_https_request(request: bytes, client_sock: socket.socket):
     s_cert_verify = wrapper.wrap(cert_verify_data)
 
 
-    client_sock.send(change_cipher_spec)
+    client_sock.sendall(change_cipher_spec)
     client_sock.sendall(s_encrypted_extensions)
     client_sock.sendall(s_cert_wrapped)
-    client_sock.sendall(s_cert_verify)
-
+    # client_sock.sendall(s_cert_verify)
 
