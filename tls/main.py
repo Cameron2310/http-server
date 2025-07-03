@@ -31,22 +31,35 @@ def handle_https_request(request: bytes, client_sock: socket.socket):
 
     s_cert_wrapped = wrapper.wrap(cert_data)
 
+    # NOTE: Cert verify
+    hashed_msgs = utils.hash_messages(request[5:] + server_hello_msg[5:] + s_extensions + cert_data)
+    msgs = bytes([0x20] * 64) + b"TLS 1.3, server CertificateVerify" + b"\0"
 
-    msgs = request[5:] + server_hello_msg[5:] + s_extensions + cert_data
-    hashed_msgs = utils.hash_messages(msgs)
+    # signed_data = utils.sign_hash(hashed_msgs, msgs)
+    signed_data = utils.sign_hash(utils.hash_messages(msgs + hashed_msgs))
 
-    signed_data = utils.sign_hash(hashed_msgs)
+    algorithm_val = bytes([0x08, 0x04])
+    len_signature = len(signed_data).to_bytes(2, "big")
 
     cert_verify_msg_type = bytes([0x0f])
-    cert_verify_payload_len = (len(signed_data) + 4).to_bytes(3, "big")
+    cert_verify_payload_len = (len(signed_data) + len(algorithm_val) + len(len_signature)).to_bytes(3, "big")
     cert_verify_header = cert_verify_msg_type + cert_verify_payload_len
 
-    cert_verify_data = cert_verify_header + signed_data
+    cert_verify_data = cert_verify_header + algorithm_val + len_signature + signed_data
     s_cert_verify = wrapper.wrap(cert_verify_data)
 
+    # NOTE: Server Handshake Finished
 
-    client_sock.sendall(change_cipher_spec)
-    client_sock.sendall(s_encrypted_extensions)
-    client_sock.sendall(s_cert_wrapped)
+    verify_hash = utils.verify_data(handshake_keys.shs, request[5:] + server_hello_msg[5:] + s_extensions + cert_data + cert_verify_data)
+    hs_done_msg_type = bytes([0x14])
+    hs_final_header = hs_done_msg_type + (len(verify_hash)).to_bytes(3, "big")
+
+    s_hs_final_msg = wrapper.wrap(hs_final_header + verify_hash)
+
+    client_sock.sendall(change_cipher_spec + s_encrypted_extensions + s_cert_wrapped + s_cert_verify + s_hs_final_msg)
+    # client_sock.sendall(s_cert_wrapped)
     # client_sock.sendall(s_cert_verify)
+    # client_sock.sendall(s_hs_final_msg)
+    client_return = client_sock.recv(2048)
+    print("\n\n client return ----> ", client_return.hex(sep=" "))
 

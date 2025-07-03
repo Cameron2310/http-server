@@ -3,12 +3,16 @@ import hmac
 from collections import namedtuple
 from cryptography import x509
 from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.asymmetric import padding
+from cryptography.hazmat.primitives.asymmetric import padding, utils
 from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PrivateKey, X25519PublicKey
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.kdf.hkdf import HKDFExpand
 from cryptography.hazmat.primitives.serialization import Encoding, load_pem_private_key
 from typing import List
+
+from Crypto.Signature import pss
+from Crypto.Hash import SHA256
+from Crypto.PublicKey import RSA
 
 KeyPair = namedtuple("KeyPair", ["private_key", "public_key"])
 HandshakeKeys = namedtuple("HandshakeKeys", ["handshake_secret", "chs", "chs_key", "chs_iv", "shs", "shs_key", "shs_iv"])
@@ -80,21 +84,29 @@ def encrypt(key: bytes, iv: bytes, plaintext: bytes, additional: bytes = None) -
 
 
 def get_server_cert():
-    with open("tls/server.crt", "rb") as f:
+    with open("tls/server.pem", "rb") as f:
         cert_data = f.read()
     
     cert = x509.load_pem_x509_certificate(cert_data)
     return cert.public_bytes(Encoding.DER)
 
 
+# def sign_hash(handshake_msgs: bytes, additional: bytes):
+#     key = RSA.import_key(open("tls/key.pem", "rb").read())
+#     hashed_data = SHA256.new(additional + handshake_msgs)
+#
+#     pss_obj = pss.new(key)
+#     signature = pss_obj.sign(hashed_data)
+#     return signature
+
 def sign_hash(hashed_data: bytes):
-    with open("tls/private_key.pem", "rb") as key_file:
+    with open("tls/key.pem", "rb") as key_file:
         private_key = load_pem_private_key(
             key_file.read(),
             password=None
         )
 
-    return private_key.sign(hashed_data, padding.PKCS1v15(), algorithm=hashes.SHA256())
+    return private_key.sign(hashed_data, padding.PSS(mgf=padding.MGF1(hashes.SHA256()), salt_length=len(hashed_data)), utils.Prehashed(hashes.SHA256()))
 
 
 def hash_messages(messages: bytes):
@@ -102,3 +114,16 @@ def hash_messages(messages: bytes):
     hash.update(messages)
 
     return hash.digest()
+
+
+def verify_data(shs_secret: bytes, msgs: bytes):
+    finished_key = hkdf_expand_label(shs_secret, b"finished", b"", 32)
+    hashed_msgs = hash_messages(msgs)
+
+    hm = hmac.new(finished_key, hashed_msgs, hashlib.sha256)
+    return hm.digest()
+
+
+
+
+

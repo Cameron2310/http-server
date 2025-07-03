@@ -45,7 +45,7 @@ class Wrapper:
         self.record_count = 0
 
 
-    def wrap(self, data: bytes, additional: bytes = None):
+    def wrap(self, data: bytes):
         handshake_record = bytes([0x17])
         protocol_version = bytes([0x03, 0x03])
         len_data_in_bytes = (len(data) + 17).to_bytes(2, "big")
