@@ -1,7 +1,7 @@
 # tls-server
 
 ## About
-The goal of this project was to help me learn the intricate details of HTTP & TLS.
+The goal of this project was to help me learn the intricate details of HTTP & TLS 1.3.
 
 ## Setup
 1. Clone repo
