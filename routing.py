@@ -9,7 +9,7 @@ logger = logging.getLogger("tls_server")
 def handle_path(request: http_message.Request) -> bytes:
     match request.path:
         case "/echo":
-            return http_message.create_response(200, "OK", request.find_header("Content-Type"), request.body)
+            return http_message.create_response(200, "OK", request.find_header("Content-Type"), request.body + b"\n")
 
         case "/upload_file":
             try:
