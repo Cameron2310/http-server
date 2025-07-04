@@ -74,12 +74,12 @@ def handle_https_request(request: bytes, client_sock: socket.socket):
 
     # wrapper.record_count = 0
     client_cipher_spec = client_return[0:6]
-    client_finished = client_return[6:-16]
+    client_finished = client_return[11:]
 
     print("\n\n client return ----> ", client_return.hex(sep=" "))
     print("client finished ---> ", client_finished.hex(sep=" "))
-    additional = client_return[len(client_finished):]
+    additional = client_return[6:11]
     decrypted_msg = utils.decrypt(handshake_keys.chs_key, handshake_keys.chs_iv, client_finished, additional)
 
 
-    print("\n deciphered ---> ", decrypted_msg) 
+    print("\n deciphered ---> ", decrypted_msg.hex(sep=" ")) 
