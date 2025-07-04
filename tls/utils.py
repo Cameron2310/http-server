@@ -118,11 +118,17 @@ def verify_data(shs_secret: bytes, msgs: bytes):
 
 
 def make_server_app_keys(handshake_secret: bytes, msgs: bytes):
-    derived_secret = hkdf_expand_label(handshake_secret, b"derived", hashlib.sha256(b"").digest(), 32)
-    master_secret = hkdf_extract(derived_secret, None)
+    early_secret = hkdf_extract(b"\x00", b"\x00" * 32)
+
+    derived_secret = hkdf_expand_label(early_secret, b"derived", hashlib.sha256(b"").digest(), 32)
+
+    handshake_secret_2 = hkdf_extract(derived_secret, handshake_secret)
+    derived_secret_2 = hkdf_expand_label(handshake_secret_2, b"derived", hashlib.sha256(b"").digest(), 32)
+
+    master_secret = hkdf_extract(derived_secret_2, bytes([0x00] * 32))
     hashed_msgs = hashlib.sha256(msgs).digest()
 
-    client_secret = hkdf_expand_label(master_secret, b"s ap traffic", hashed_msgs, 32)
+    client_secret = hkdf_expand_label(master_secret, b"c ap traffic", hashed_msgs, 32)
     server_secret = hkdf_expand_label(master_secret, b"s ap traffic", hashed_msgs, 32)
 
     client_app_key = hkdf_expand_label(client_secret, b"key", b"", 16)
