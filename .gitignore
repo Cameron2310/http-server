@@ -2,3 +2,9 @@ __pycache__
 .DS_STORE
 files
 .vscode
+.pytest_cache
+.venv
+*.pem
+**/*.pem
+*.crt
+**/*.crt

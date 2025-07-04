@@ -24,7 +24,7 @@ class Request:
         return ""
 
 
-def create_response(response_code: int, response_message: str, content_type="text/plain", body=""):
+def create_response(response_code: int, response_message: str, content_type="text/plain", body="") -> bytes:
     http_version = "HTTP/1.1"
     content_len = len(body)
 
