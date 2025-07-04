@@ -60,7 +60,7 @@ class Wrapper:
    
 
 def xor_iv(server_iv, record_count):
-    print("\n\n xor_iv: count of records ----> ", record_count)
+    print("\n xor_iv: count of records ----> ", record_count)
     if type(server_iv) is bytes:
         server_iv = int.from_bytes(server_iv, "big")
 

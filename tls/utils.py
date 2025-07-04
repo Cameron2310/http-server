@@ -10,9 +10,6 @@ from cryptography.hazmat.primitives.kdf.hkdf import HKDFExpand
 from cryptography.hazmat.primitives.serialization import Encoding, load_pem_private_key
 from typing import List
 
-from Crypto.Signature import pss
-from Crypto.Hash import SHA256
-from Crypto.PublicKey import RSA
 
 KeyPair = namedtuple("KeyPair", ["private_key", "public_key"])
 HandshakeKeys = namedtuple("HandshakeKeys", ["handshake_secret", "chs", "chs_key", "chs_iv", "shs", "shs_key", "shs_iv"])
@@ -83,24 +80,20 @@ def encrypt(key: bytes, iv: bytes, plaintext: bytes, additional: bytes = None) -
     return aesgcm.encrypt(iv, plaintext, additional)
 
 
+def decrypt(key: bytes, iv: bytes, ciphertext: bytes, additional: bytes):
+    return AESGCM(key).decrypt(iv, ciphertext, additional)
+
+
 def get_server_cert():
-    with open("tls/server.pem", "rb") as f:
+    with open("tls/server_cert.pem", "rb") as f:
         cert_data = f.read()
     
     cert = x509.load_pem_x509_certificate(cert_data)
     return cert.public_bytes(Encoding.DER)
 
 
-# def sign_hash(handshake_msgs: bytes, additional: bytes):
-#     key = RSA.import_key(open("tls/key.pem", "rb").read())
-#     hashed_data = SHA256.new(additional + handshake_msgs)
-#
-#     pss_obj = pss.new(key)
-#     signature = pss_obj.sign(hashed_data)
-#     return signature
-
 def sign_hash(hashed_data: bytes):
-    with open("tls/key.pem", "rb") as key_file:
+    with open("tls/cert_priv_key.pem", "rb") as key_file:
         private_key = load_pem_private_key(
             key_file.read(),
             password=None
@@ -124,6 +117,18 @@ def verify_data(shs_secret: bytes, msgs: bytes):
     return hm.digest()
 
 
+def make_server_app_keys(handshake_secret: bytes, msgs: bytes):
+    derived_secret = hkdf_expand_label(handshake_secret, b"derived", hashlib.sha256(b"").digest(), 32)
+    master_secret = hkdf_extract(derived_secret, None)
+    hashed_msgs = hashlib.sha256(msgs).digest()
 
+    client_secret = hkdf_expand_label(master_secret, b"s ap traffic", hashed_msgs, 32)
+    server_secret = hkdf_expand_label(master_secret, b"s ap traffic", hashed_msgs, 32)
 
+    client_app_key = hkdf_expand_label(client_secret, b"key", b"", 16)
+    server_app_key = hkdf_expand_label(server_secret, b"key", b"", 16)
 
+    client_app_iv = hkdf_expand_label(client_secret, b"key", b"", 12)
+    server_app_iv = hkdf_expand_label(server_secret, b"iv", b"", 12)
+
+    return client_app_key, client_app_iv, server_app_key, server_app_iv
