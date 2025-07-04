@@ -3,7 +3,6 @@ from datetime import datetime
 
 class Request:
     def __init__(self, request: bytes):
-        print("\nrequest ----> ", request)
         str_request = request.decode()
         parsed_request = str_request.split("\r\n")
         start_line = parsed_request[0].split()
@@ -25,7 +24,7 @@ class Request:
         return ""
 
 
-def create_response(response_code: int, response_message: str, content_type="text/plain", body=""):
+def create_response(response_code: int, response_message: str, content_type="text/plain", body="") -> bytes:
     http_version = "HTTP/1.1"
     content_len = len(body)
 

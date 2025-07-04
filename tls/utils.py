@@ -1,5 +1,6 @@
 import hashlib
 import hmac
+import logging
 from collections import namedtuple
 from cryptography import x509
 from cryptography.hazmat.primitives import hashes
@@ -11,7 +12,10 @@ from cryptography.hazmat.primitives.serialization import Encoding, load_pem_priv
 from typing import List
 
 
+logger = logging.getLogger("tls_server")
+
 KeyPair = namedtuple("KeyPair", ["private_key", "public_key"])
+AppKeys = namedtuple("AppKeys", ["client_app_key", "client_app_iv", "server_app_key", "server_app_iv"])
 HandshakeKeys = namedtuple("HandshakeKeys", ["handshake_secret", "chs", "chs_key", "chs_iv", "shs", "shs_key", "shs_iv"])
 
 
@@ -137,11 +141,11 @@ def make_server_app_keys(handshake_secret: bytes, msgs: bytes):
     client_app_iv = hkdf_expand_label(client_secret, b"iv", b"", 12)
     server_app_iv = hkdf_expand_label(server_secret, b"iv", b"", 12)
 
-    return client_app_key, client_app_iv, server_app_key, server_app_iv
+    return AppKeys(client_app_key, client_app_iv, server_app_key, server_app_iv)
 
 
 def xor_iv(server_iv, record_count):
-    print("\n xor_iv: count of records ----> ", record_count)
+    logger.info(f"xor_iv: count of records ----> {record_count}")
     if type(server_iv) is bytes:
         server_iv = int.from_bytes(server_iv, "big")
 

@@ -1,9 +1,12 @@
 import http_message
+import logging
 from datetime import datetime
 from file_type import determine_file_type
 
+logger = logging.getLogger("tls_server")
 
-def handle_path(request: http_message.Request):
+
+def handle_path(request: http_message.Request) -> bytes:
     match request.path:
         case "/echo":
             return http_message.create_response(200, "OK", request.find_header("Content-Type"), request.body)
@@ -19,7 +22,7 @@ def handle_path(request: http_message.Request):
                 return http_message.create_response(201, "Created", body="File successfully uploaded")
 
             except Exception as e:
-                print(f"Exception {e}")
+                logger.exception(f"Exception {e}")
                 return http_message.create_response(500, "Server Error")
 
         case "/file":

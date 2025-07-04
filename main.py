@@ -1,21 +1,33 @@
+import logging
 import socket
 import threading
 import tls.main
 from routing import handle_path
 from http_message import Request
 
+FORMAT = '%(name)s: %(asctime)s - (%(levelname)s) %(message)s'
+logging.basicConfig(format=FORMAT)
+
+logger = logging.getLogger("tls_server")
+logger.setLevel(logging.INFO)
+
 
 def handle_request(client_sock: socket.socket, request_id: int):
     try:
         batch_size = 2048
         data = client_sock.recv(batch_size)
-        tls.main.handle_https_request(data, client_sock)
+        is_https = data.hex(sep=" ").startswith("16 03 01")
+
+        if is_https:
+            logger.info("https request being handled...")
+            tls_session = tls.main.TlsSession(client_sock)
+            data = tls_session.handle_https_request(data)
 
         request = Request(data)
         content_length = request.find_header("Content-Length")
 
         if content_length:
-            content_length = int(request.find_header("Content-Length")) - batch_size
+            content_length = int(content_length) - batch_size
        
         else:
             content_length = 0
@@ -30,8 +42,14 @@ def handle_request(client_sock: socket.socket, request_id: int):
             request.body = b"".join(byte_list)
 
         response = handle_path(request)
-        # print(f"\nresponding to request {request_id}")
-        client_sock.sendall(response)
+        logger.info(f"responding to request {request_id}")
+
+        if is_https:
+            logger.info("\n sending https response...")
+            client_sock.sendall(tls_session.wrap_app_msg(response))
+
+        else:
+            client_sock.sendall(response)
 
     finally:
         client_sock.close()
@@ -43,7 +61,7 @@ def start_server(port: int, max_connections: int):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server_sock:
         server_sock.bind(("localhost", port))
         server_sock.listen(max_connections)
-        print(f"spinning up server on port {port}...")
+        logger.info(f"spinning up server on port {port}...")
 
         while True:
             client_sock, _ = server_sock.accept()
@@ -55,8 +73,8 @@ def start_server(port: int, max_connections: int):
                 t.start()
                 
             except Exception as e:
-                print(f"Exception received\n{e}")
-                print("Shutting down...")
+                logger.critical(f"Exception received\n{e}")
+                logger.critical("Shutting down...")
                 break
 
 
