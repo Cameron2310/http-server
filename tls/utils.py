@@ -81,7 +81,9 @@ def encrypt(key: bytes, iv: bytes, plaintext: bytes, additional: bytes = None) -
 
 
 def decrypt(key: bytes, iv: bytes, ciphertext: bytes, additional: bytes):
-    return AESGCM(key).decrypt(iv, ciphertext, additional)
+    aesgcm = AESGCM(key)
+    
+    return aesgcm.decrypt(iv, ciphertext, additional)
 
 
 def get_server_cert():
@@ -118,14 +120,12 @@ def verify_data(shs_secret: bytes, msgs: bytes):
 
 
 def make_server_app_keys(handshake_secret: bytes, msgs: bytes):
-    early_secret = hkdf_extract(b"\x00", b"\x00" * 32)
+    hasher = hashlib.sha256()
+    hasher.update(b"")
+    empty_hash = hasher.digest()
 
-    derived_secret = hkdf_expand_label(early_secret, b"derived", hashlib.sha256(b"").digest(), 32)
-
-    handshake_secret_2 = hkdf_extract(derived_secret, handshake_secret)
-    derived_secret_2 = hkdf_expand_label(handshake_secret_2, b"derived", hashlib.sha256(b"").digest(), 32)
-
-    master_secret = hkdf_extract(derived_secret_2, bytes([0x00] * 32))
+    derived_secret = hkdf_expand_label(handshake_secret, b"derived", empty_hash, 32)
+    master_secret = hkdf_extract(derived_secret, bytes([0x00] * 32))
     hashed_msgs = hashlib.sha256(msgs).digest()
 
     client_secret = hkdf_expand_label(master_secret, b"c ap traffic", hashed_msgs, 32)
@@ -134,7 +134,18 @@ def make_server_app_keys(handshake_secret: bytes, msgs: bytes):
     client_app_key = hkdf_expand_label(client_secret, b"key", b"", 16)
     server_app_key = hkdf_expand_label(server_secret, b"key", b"", 16)
 
-    client_app_iv = hkdf_expand_label(client_secret, b"key", b"", 12)
+    client_app_iv = hkdf_expand_label(client_secret, b"iv", b"", 12)
     server_app_iv = hkdf_expand_label(server_secret, b"iv", b"", 12)
 
     return client_app_key, client_app_iv, server_app_key, server_app_iv
+
+
+def xor_iv(server_iv, record_count):
+    print("\n xor_iv: count of records ----> ", record_count)
+    if type(server_iv) is bytes:
+        server_iv = int.from_bytes(server_iv, "big")
+
+    if type(record_count) is bytes:
+        record_count = int.from_bytes(record_count, "big")
+
+    return (server_iv ^ record_count).to_bytes(12, "big")

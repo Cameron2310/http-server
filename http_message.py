@@ -3,6 +3,7 @@ from datetime import datetime
 
 class Request:
     def __init__(self, request: bytes):
+        print("\nrequest ----> ", request)
         str_request = request.decode()
         parsed_request = str_request.split("\r\n")
         start_line = parsed_request[0].split()

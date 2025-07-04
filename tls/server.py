@@ -51,20 +51,10 @@ class Wrapper:
         len_data_in_bytes = (len(data) + 17).to_bytes(2, "big")
 
         additional = handshake_record + protocol_version + len_data_in_bytes
-        encrypted_data = utils.encrypt(self.shs_key, xor_iv(self.shs_iv, self.record_count), data + bytes([0x16]), additional)
+        encrypted_data = utils.encrypt(self.shs_key, utils.xor_iv(self.shs_iv, self.record_count), data + bytes([0x16]), additional)
         
         record = additional + encrypted_data
         self.record_count += 1
 
         return record
    
-
-def xor_iv(server_iv, record_count):
-    print("\n xor_iv: count of records ----> ", record_count)
-    if type(server_iv) is bytes:
-        server_iv = int.from_bytes(server_iv, "big")
-
-    if type(record_count) is bytes:
-        record_count = int.from_bytes(record_count, "big")
-
-    return (server_iv ^ record_count).to_bytes(12, "big")

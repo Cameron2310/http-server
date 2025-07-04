@@ -9,7 +9,6 @@ def handle_request(client_sock: socket.socket, request_id: int):
     try:
         batch_size = 2048
         data = client_sock.recv(batch_size)
-        # print("data ----> ", data)
         tls.main.handle_https_request(data, client_sock)
 
         request = Request(data)

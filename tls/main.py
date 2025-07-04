@@ -75,8 +75,6 @@ def handle_https_request(request: bytes, client_sock: socket.socket):
     client_cipher_spec = client_return[0:6]
     client_finished = client_return[11:]
 
-    print("\n\n client return ----> ", client_return.hex(sep=" "))
-    print("client finished ---> ", client_finished.hex(sep=" "))
     additional = client_return[6:11]
     decrypted_msg = utils.decrypt(handshake_keys.chs_key, handshake_keys.chs_iv, client_finished, additional)
 
@@ -85,11 +83,12 @@ def handle_https_request(request: bytes, client_sock: socket.socket):
 
     next_client_return = client_sock.recv(1024)
     print("\n client next ----> ", next_client_return.hex(sep=" "))
-    print("\nheader ---> ", next_client_return[:5])
+    print("\nheader ---> ", next_client_return[:5].hex(sep=" "))
 
     wrapper.record_count = 0
-    next_decipher = utils.decrypt(client_app_key, client_app_iv, next_client_return[5:], next_client_return[:5])
-    print("\n decipher next ---> ", next_decipher.hex(sep=" "))
+    next_additional = next_client_return[:5]
+    next_decipher = utils.decrypt(client_app_key, client_app_iv, next_client_return[5:], next_additional)
+    print("\n decipher next ---> ", next_decipher.decode())
 
 
 
