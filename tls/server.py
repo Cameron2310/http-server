@@ -34,27 +34,3 @@ def create_server_hello(session_id) -> ServerHello:
     len_handshake = [int(i) for i in (len(handshake)).to_bytes(2, "big")]
 
     return ServerHello(handshake_record + protocol_version + handshake_data + [0x02, 0x00] + len_handshake + handshake, keys.private_key)
-
-
-class Wrapper:
-    def __init__(self, shs_key: bytes, shs_iv: bytes, chs_iv: bytes = None, chs_key: bytes = None):
-        self.shs_key = shs_key
-        self.shs_iv = shs_iv
-        self.chs_key = chs_key
-        self.chs_iv = chs_iv
-        self.record_count = 0
-
-
-    def wrap(self, data: bytes):
-        handshake_record = bytes([0x17])
-        protocol_version = bytes([0x03, 0x03])
-        len_data_in_bytes = (len(data) + 17).to_bytes(2, "big")
-
-        additional = handshake_record + protocol_version + len_data_in_bytes
-        encrypted_data = utils.encrypt(self.shs_key, utils.xor_iv(self.shs_iv, self.record_count), data + bytes([0x16]), additional)
-        
-        record = additional + encrypted_data
-        self.record_count += 1
-
-        return record
-   
