@@ -127,7 +127,7 @@ class TlsSession:
         self.app_keys = utils.make_server_app_keys(self.handshake_keys.handshake_secret, running_msgs)
 
         self.client_sock.sendall(change_cipher_spec + s_encrypted_extensions + s_cert_wrapped + s_cert_verify + s_hs_final_msg)
-        self.client_sock.recv(1024)
+        self.client_sock.recv(80)
 
         next_client_return = self.client_sock.recv(1024)
         next_decipher = self.unwrap_app_msg(next_client_return)
